@@ -1,5 +1,114 @@
+import { useEffect, useRef, useState } from "react";
+import {
+    PoseLandmarker,
+    FilesetResolver,
+    DrawingUtils,
+} from "@mediapipe/tasks-vision";
+import noImage from "./assets/img/no-image.jfif";
 import "./assets/scss/app.scss";
 
 export default function App() {
-    return <h1>Hello World!!!</h1>;
+    const [poseLandmarkerResult, setPoseLandmarkerResult] =
+        useState<PoseLandmarker | null>(null);
+
+    const canvas = useRef<HTMLCanvasElement>(null);
+    const img = useRef<HTMLImageElement>(null);
+    const streamUrl: string = "http://100.87.63.80:8080/video";
+
+    useEffect(() => {
+        function urlHandler() {
+            if (!img.current) return;
+
+            img.current.src = streamUrl;
+        }
+
+        urlHandler();
+    }, []);
+
+    useEffect(() => {
+        async function apiCall() {
+            const vision = await FilesetResolver.forVisionTasks("/wasm");
+
+            const poseLandmarker = await PoseLandmarker.createFromOptions(
+                vision,
+                {
+                    baseOptions: {
+                        modelAssetPath: "../model/pose_landmarker_full.task",
+                    },
+                    runningMode: "IMAGE",
+                },
+            );
+
+            setPoseLandmarkerResult(poseLandmarker);
+        }
+
+        apiCall();
+    }, [setPoseLandmarkerResult]);
+
+    useEffect(() => {
+        let intervalId: ReturnType<typeof setInterval>;
+
+        function resultView() {
+            intervalId = setInterval(() => {
+                if (!img.current || !canvas.current || !poseLandmarkerResult)
+                    return;
+
+                const result = poseLandmarkerResult?.detect(img.current);
+
+                const ctx = canvas.current.getContext("2d");
+
+                if (!ctx) return;
+
+                // Clear canvas sebelumnya
+                ctx.clearRect(
+                    0,
+                    0,
+                    canvas.current.width,
+                    canvas.current.height,
+                );
+
+                const drawingUtils = new DrawingUtils(ctx);
+
+                if (result.landmarks) {
+                    for (const landmark of result.landmarks) {
+                        // Gambar garis penghubung antar titik tubuh
+                        drawingUtils.drawConnectors(
+                            landmark,
+                            PoseLandmarker.POSE_CONNECTIONS,
+                            {
+                                color: "#00FF00",
+                                lineWidth: 1,
+                            },
+                        );
+
+                        // Gambar titik-titik posisi tubuh
+                        drawingUtils.drawLandmarks(landmark, {
+                            color: "#FF0000",
+                            lineWidth: 2,
+                            radius: 2,
+                        });
+                    }
+                }
+            }, 50);
+        }
+
+        resultView();
+
+        return () => clearInterval(intervalId);
+    });
+
+    return (
+        <main>
+            <section>
+                <img
+                    ref={img}
+                    crossOrigin="anonymous"
+                    onError={(e) => {
+                        e.currentTarget.src = noImage;
+                    }}
+                />
+                <canvas ref={canvas} id="myCanvas"></canvas>
+            </section>
+        </main>
+    );
 }
