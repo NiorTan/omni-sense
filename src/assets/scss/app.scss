@@ -4,24 +4,45 @@ main {
     width: 100%;
     height: 100vh;
     display: flex;
-    justify-content: center;
+    flex-direction: column;
     align-items: center;
-    section {
-        width: 70%;
+    gap: 1rem 1rem;
+    .img-section {
+        width: 50%;
         aspect-ratio: 16/9;
         position: relative;
+        border: 1px dashed blue;
+        border-radius: 5px;
         img {
             width: 100%;
             height: 100%;
-            object-fit: contain;
             border-radius: 5px;
         }
         canvas {
             width: 100%;
             height: 100%;
             position: absolute;
+            border-radius: 5px;
             top: 0;
             left: 0;
+        }
+    }
+    .message-card-section {
+        width: 50%;
+        display: flex;
+        gap: 1rem;
+        padding: 1rem;
+        border-radius: 5px;
+        .text-div {
+            flex: 2;
+        }
+        .img-div {
+            flex: 1;
+            img {
+                width: 100%;
+                aspect-ratio: 1/1;
+                border-radius: 5px;
+            }
         }
     }
 }

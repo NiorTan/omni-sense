@@ -5,15 +5,20 @@ import {
     DrawingUtils,
 } from "@mediapipe/tasks-vision";
 import noImage from "./assets/img/no-image.jfif";
+import cardData from "./assets/data/message-card.json";
+import MessageCard from "./assets/components/MessageCard";
+import { detectPostureStatus } from "./assets/misc/utils.ts";
 import "./assets/scss/app.scss";
 
 export default function App() {
     const [poseLandmarkerResult, setPoseLandmarkerResult] =
         useState<PoseLandmarker | null>(null);
 
+    const [postureIndex, setPostureIndex] = useState<number>(0);
+
     const canvas = useRef<HTMLCanvasElement>(null);
     const img = useRef<HTMLImageElement>(null);
-    const streamUrl: string = "http://100.87.63.80:8080/video";
+    const streamUrl: string = "http://100.86.126.16:8080/video";
 
     useEffect(() => {
         function urlHandler() {
@@ -54,6 +59,12 @@ export default function App() {
                     return;
 
                 const result = poseLandmarkerResult?.detect(img.current);
+
+                if (result.landmarks && result.landmarks.length > 0) {
+                    const currentLandmarks = result.landmarks[0];
+                    const index = detectPostureStatus(currentLandmarks);
+                    setPostureIndex(index);
+                }
 
                 const ctx = canvas.current.getContext("2d");
 
@@ -97,9 +108,11 @@ export default function App() {
         return () => clearInterval(intervalId);
     });
 
+    console.log(poseLandmarkerResult);
+
     return (
         <main>
-            <section>
+            <section className="img-section">
                 <img
                     ref={img}
                     crossOrigin="anonymous"
@@ -109,6 +122,13 @@ export default function App() {
                 />
                 <canvas ref={canvas} id="myCanvas"></canvas>
             </section>
+            <MessageCard
+                header={cardData[postureIndex].header}
+                body={cardData[postureIndex].body}
+                img={cardData[postureIndex].img}
+                backgroundColor={cardData[postureIndex].backgroundColor}
+                textColor={cardData[postureIndex].textColor}
+            />
         </main>
     );
 }
