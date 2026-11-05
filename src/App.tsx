@@ -1,123 +1,156 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
     PoseLandmarker,
     FilesetResolver,
     DrawingUtils,
 } from "@mediapipe/tasks-vision";
-import noImage from "./assets/img/no-image.jfif";
 import cardData from "./assets/data/message-card.json";
 import MessageCard from "./assets/components/MessageCard";
 import { detectPostureStatus } from "./assets/misc/utils.ts";
 import "./assets/scss/app.scss";
 
 export default function App() {
+    interface UrlHost {
+        host: string;
+    }
+
     const [poseLandmarkerResult, setPoseLandmarkerResult] =
         useState<PoseLandmarker | null>(null);
 
-    const [postureIndex, setPostureIndex] = useState<number>(0);
+    const [postureIndex, setPostureIndex] = useState<number>(4);
+
+    const [urlHost, setUrlHost] = useState<UrlHost>();
 
     const canvas = useRef<HTMLCanvasElement>(null);
     const img = useRef<HTMLImageElement>(null);
-    const streamUrl: string = "http://100.86.126.16:8080/video";
 
     useEffect(() => {
-        function urlHandler() {
-            if (!img.current) return;
+        let landmarker: PoseLandmarker | null = null;
 
-            img.current.src = streamUrl;
-        }
-
-        urlHandler();
-    }, []);
-
-    useEffect(() => {
         async function apiCall() {
-            const vision = await FilesetResolver.forVisionTasks("/wasm");
-
-            const poseLandmarker = await PoseLandmarker.createFromOptions(
-                vision,
-                {
+            try {
+                const vision = await FilesetResolver.forVisionTasks("/wasm");
+                landmarker = await PoseLandmarker.createFromOptions(vision, {
                     baseOptions: {
                         modelAssetPath: "../model/pose_landmarker_full.task",
                     },
                     runningMode: "IMAGE",
-                },
-            );
-
-            setPoseLandmarkerResult(poseLandmarker);
+                });
+                setPoseLandmarkerResult(landmarker);
+            } catch (err) {
+                console.error("Gagal menginisialisasi MediaPipe:", err);
+            }
         }
 
         apiCall();
-    }, [setPoseLandmarkerResult]);
+
+        return () => {
+            landmarker?.close();
+        };
+    }, []);
 
     useEffect(() => {
-        let intervalId: ReturnType<typeof setInterval>;
+        let animationFrameId: number;
 
-        function resultView() {
-            intervalId = setInterval(() => {
-                if (!img.current || !canvas.current || !poseLandmarkerResult)
-                    return;
-
-                const result = poseLandmarkerResult?.detect(img.current);
-
-                if (result.landmarks && result.landmarks.length > 0) {
-                    const currentLandmarks = result.landmarks[0];
-                    const index = detectPostureStatus(currentLandmarks);
-                    setPostureIndex(index);
+        function renderLoop() {
+            if (
+                img.current &&
+                canvas.current &&
+                poseLandmarkerResult &&
+                img.current.complete &&
+                img.current.naturalWidth > 0 &&
+                img.current.naturalHeight > 0
+            ) {
+                if (
+                    canvas.current.width !== img.current.clientWidth ||
+                    canvas.current.height !== img.current.clientHeight
+                ) {
+                    canvas.current.width = img.current.clientWidth;
+                    canvas.current.height = img.current.clientHeight;
                 }
 
-                const ctx = canvas.current.getContext("2d");
+                try {
+                    const result = poseLandmarkerResult.detect(img.current);
 
-                if (!ctx) return;
-
-                // Clear canvas sebelumnya
-                ctx.clearRect(
-                    0,
-                    0,
-                    canvas.current.width,
-                    canvas.current.height,
-                );
-
-                const drawingUtils = new DrawingUtils(ctx);
-
-                if (result.landmarks) {
-                    for (const landmark of result.landmarks) {
-                        // Gambar garis penghubung antar titik tubuh
-                        drawingUtils.drawConnectors(
-                            landmark,
-                            PoseLandmarker.POSE_CONNECTIONS,
-                            {
-                                color: "#00FF00",
-                                lineWidth: 1,
-                            },
+                    if (result.landmarks && result.landmarks.length > 0) {
+                        setPostureIndex(
+                            detectPostureStatus(result.landmarks[0]),
                         );
-
-                        // Gambar titik-titik posisi tubuh
-                        drawingUtils.drawLandmarks(landmark, {
-                            color: "#FF0000",
-                            lineWidth: 2,
-                            radius: 2,
-                        });
+                    } else if (
+                        result.landmarks &&
+                        result.landmarks.length === 0
+                    ) {
+                        setPostureIndex(3);
                     }
+
+                    const ctx = canvas.current.getContext("2d");
+                    if (ctx) {
+                        ctx.clearRect(
+                            0,
+                            0,
+                            canvas.current.width,
+                            canvas.current.height,
+                        );
+                        const drawingUtils = new DrawingUtils(ctx);
+
+                        if (result.landmarks) {
+                            for (const landmark of result.landmarks) {
+                                drawingUtils.drawConnectors(
+                                    landmark,
+                                    PoseLandmarker.POSE_CONNECTIONS,
+                                    {
+                                        color: "#00FF00",
+                                        lineWidth: 1,
+                                    },
+                                );
+                                drawingUtils.drawLandmarks(landmark, {
+                                    color: "#FF0000",
+                                    lineWidth: 2,
+                                    radius: 2,
+                                });
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.warn(err);
                 }
-            }, 50);
+            }
+
+            animationFrameId = requestAnimationFrame(renderLoop);
         }
 
-        resultView();
+        if (poseLandmarkerResult) {
+            renderLoop();
+        }
 
-        return () => clearInterval(intervalId);
-    });
+        return () => {
+            cancelAnimationFrame(animationFrameId);
+        };
+    }, [poseLandmarkerResult, urlHost?.host]);
 
-    console.log(poseLandmarkerResult);
+    function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+        const { name, value } = e.target;
+
+        setUrlHost((prevState) => {
+            return { ...prevState, [name]: value } as UrlHost;
+        });
+    }
 
     return (
         <main>
+            <input
+                type="text"
+                name="host"
+                value={urlHost?.host}
+                onChange={handleChange}
+            />
             <section className="img-section">
                 <img
                     ref={img}
+                    src={`http://${urlHost?.host}:8080/video`}
                     crossOrigin="anonymous"
-                    onError={(e) => {
-                        e.currentTarget.src = noImage;
+                    onError={() => {
+                        setPostureIndex(4);
                     }}
                 />
                 <canvas ref={canvas} id="myCanvas"></canvas>

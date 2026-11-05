@@ -21,9 +21,23 @@
         "textColor": "#fff"
     },
     {
+        "header": "Tolong Arahkan Ke Target!",
+        "body": "Tolong arahkan ke target agar bisa melakukan scan!",
+        "img": "/img/nina_iseri/4.png",
+        "backgroundColor": "#9b5de5",
+        "textColor": "#fff"
+    },
+    {
+        "header": "Tidak Terhubung ke Camera!",
+        "body": "Silahkan hubungkan web dengan camera menggunakan IP input diatas atau tunggu sebentar!",
+        "img": "/img/nina_iseri/5.png",
+        "backgroundColor": "#9b5de5",
+        "textColor": "#fff"
+    },
+    {
         "header": "Mode Rebahan Detected!",
         "body": "Ini mau ngetik apa mau tidur? Kemiringan 160° – 180° begini mah mending pindah ke kasur sekalian!",
-        "img": "/img/nina_iseri/4.png",
+        "img": "/img/nina_iseri/6.png",
         "backgroundColor": "#9b5de5",
         "textColor": "#fff"
     }

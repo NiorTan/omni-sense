@@ -45,7 +45,7 @@ export function detectPostureStatus(landmarks: Landmark[]): number {
         torsoTiltAngle >= 45 ||
         (postureAngle >= 155 && shoulder.y > hip.y - 0.15)
     ) {
-        return 3; // Index 3: Rebahan
+        return 5; // Index 3: Rebahan
     }
 
     // LEVEL 2: Postur Buruk (Bungkuk)
